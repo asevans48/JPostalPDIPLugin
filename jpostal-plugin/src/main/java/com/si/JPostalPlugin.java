@@ -18,6 +18,7 @@
  */
 package com.si;
 
+import com.mapzen.jpostal.*;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.row.RowDataUtil;
 import org.pentaho.di.core.row.RowMetaInterface;
@@ -30,6 +31,7 @@ import org.pentaho.di.trans.step.*;
 
 import java.util.HashMap;
 import java.util.Map;
+
 
 /**
  * Describe your step plugin.
@@ -72,20 +74,57 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
     if(newRowSize > r.length){
       orow = RowDataUtil.resizeArray(r, newRowSize);
     }
+
+    String house = null;
+    String postcode = null;
+    String unit = null;
+    String road = null;
+    String city = null;
+    String state = null;
+
+    if(meta.getExtractIndex() >= 0) {
+      AddressParser p = AddressParser.getInstance();
+      String addr = (String) r[meta.getExtractIndex()];
+      ParsedComponent[] components = p.parseAddress(addr);
+      for(ParsedComponent component : components){
+        String label = component.getLabel();
+        String val = component.getValue();
+        switch (label.toLowerCase()){
+          case "house":
+            house = val;
+          case "postcode":
+            postcode = val;
+          case "unit":
+            unit = val;
+          case "po_box":
+            road = val;
+          case "road":
+            road = val;
+          case "city":
+            city = val;
+          case "state":
+            state = val;
+        }
+      }
+    }
+
     int idx = this.idxMap.get(meta.getAddressOutField());
-    orow[idx] = null;
+    orow[idx] = road;
 
     idx = this.idxMap.get(meta.getAddress2OutField());
-    orow[idx] = null;
+    orow[idx] = unit;
 
     idx = this.idxMap.get(meta.getCityOutField());
-    orow[idx] = null;
+    orow[idx] = city;
 
     idx = this.idxMap.get(meta.getStateOutField());
-    orow[idx] = null;
+    orow[idx] = state;
 
     idx = this.idxMap.get(meta.getZipOutField());
-    orow[idx] = null;
+    orow[idx] = postcode;
+
+    idx = this.idxMap.get(meta.getHouseOutField());
+    orow[idx] = house;
 
     return orow;
   }
@@ -120,22 +159,30 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   private RowMetaInterface getNewRowMeta(RowMetaInterface rowMeta, JPostalPluginMeta meta) throws KettleException{
     String[] fields = getInputRowMeta().getFieldNames();
     newRowSize = getInputRowMeta().size();
+    String houseField = meta.getHouseOutField();
     String addressField = meta.getAddressOutField();
     String address2Field = meta.getAddress2OutField();
     String cityField = meta.getCityOutField();
     String stateField = meta.getStateOutField();
     String zipField = meta.getZipOutField();
-    String[] fieldnames = {addressField, address2Field, cityField, stateField, zipField};
+    String[] fieldnames = {houseField, addressField, address2Field, cityField, stateField, zipField};
+
+    int idx = stringArrayContains(fieldnames, meta.getExtractField());
+    if(idx == -1){
+      throw new KettleException("JPostal Plugin missing Extract Field");
+    }
+    meta.setExtractIndex(idx);
+
     for(int i = 0; i < fieldnames.length; i++){
       String fname = fieldnames[i];
-      int idx = stringArrayContains(fields, fname);
-      if(idx == -1){
+      int cidx = stringArrayContains(fields, fname);
+      if(cidx == -1){
         idxMap.put(fname, newRowSize);
         newRowSize += 1;
         ValueMetaInterface value = ValueMetaFactory.createValueMeta(fname, ValueMetaInterface.TYPE_STRING);
         rowMeta.addValueMeta(value);
       }else{
-        idxMap.put(fname, idx);
+        idxMap.put(fname, cidx);
       }
     }
     return rowMeta;

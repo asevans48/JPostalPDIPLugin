@@ -42,6 +42,7 @@ import org.w3c.dom.Node;
 
 import java.util.List;
 
+
 /**
  * Skeleton for PDI Step plugin.
  */
@@ -56,6 +57,8 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
     Specific metadata for the step.
   */
   private String extractField = "Field to Extract";
+  private int extractIndex = -1;
+  private String houseOutField = "house_out";
   private String addressOutField = "address_out";
   private String address2OutField = "address2_out";
   private String cityOutField = "city_out";
@@ -70,7 +73,24 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
   /*
   Getters and setters for specific meta data
    */
-  public String getAddressOutField() {
+
+  public int getExtractIndex() {
+      return extractIndex;
+  }
+
+  public void setExtractIndex(int extractIndex) {
+      this.extractIndex = extractIndex;
+  }
+
+  public String getHouseOutField() {
+      return houseOutField;
+  }
+
+  public void setHouseOutField(String houseOutField) {
+      this.houseOutField = houseOutField;
+  }
+
+    public String getAddressOutField() {
     return addressOutField;
   }
 
@@ -122,6 +142,7 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
         StringBuilder xml = new StringBuilder();
 
         xml.append( XMLHandler.addTagValue( "extractField", extractField ) );
+        xml.append(XMLHandler.addTagValue("houseOutField", houseOutField));
         xml.append( XMLHandler.addTagValue( "addressOutField", addressOutField ) );
         xml.append( XMLHandler.addTagValue( "address2OutField", address2OutField ) );
         xml.append( XMLHandler.addTagValue( "cityOutField", cityOutField ) );
@@ -132,6 +153,7 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
 
   public void loadXML(Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore) throws KettleXMLException {
       try {
+          setHouseOutField(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "houseOutField")));
           setAddressOutField( XMLHandler.getNodeValue( XMLHandler.getSubNode( stepnode, "addressOutField" ) ) );
           setAddress2OutField( XMLHandler.getNodeValue( XMLHandler.getSubNode( stepnode, "address2OutField" ) ) );
           setCityOutField( XMLHandler.getNodeValue( XMLHandler.getSubNode( stepnode, "cityOutField" ) ) );
@@ -150,6 +172,7 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
 
   public void setDefault() {
       extractField = "Field to Extract";
+      houseOutField = "house_out";
       addressOutField = "address_out";
       address2OutField = "address2_out";
       cityOutField = "city_out";
@@ -161,6 +184,7 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
   public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
       try {
           extractField  = rep.getStepAttributeString( id_step, "extractfield" );
+          houseOutField = rep.getStepAttributeString(id_step, "houseOutField");
           addressOutField  = rep.getStepAttributeString( id_step, "addressOutField" );
           address2OutField  = rep.getStepAttributeString( id_step, "address2OutField" );
           cityOutField  = rep.getStepAttributeString( id_step, "cityOutField" );
@@ -174,6 +198,7 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
   public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
       try {
           rep.saveStepAttribute( id_transformation, id_step, "extractField", extractField );
+          rep.saveStepAttribute(id_transformation, id_step, "houseOutField", houseOutField);
           rep.saveStepAttribute( id_transformation, id_step, "addressOutField", addressOutField );
           rep.saveStepAttribute( id_transformation, id_step, "address2OutField", address2OutField );
           rep.saveStepAttribute( id_transformation, id_step, "cityOutField", cityOutField );
@@ -186,6 +211,11 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
 
     public void getFields( RowMetaInterface inputRowMeta, String name, RowMetaInterface[] info, StepMeta nextStep,
                            VariableSpace space, Repository repository, IMetaStore metaStore ) throws KettleStepException {
+
+        ValueMetaInterface v0 = new ValueMetaString(houseOutField);
+        v0.setTrimType(ValueMetaInterface.TRIM_TYPE_BOTH);
+        v0.setOrigin(name);
+        inputRowMeta.addValueMeta( v0 );
 
         ValueMetaInterface v = new ValueMetaString( addressOutField );
         v.setTrimType( ValueMetaInterface.TRIM_TYPE_BOTH );

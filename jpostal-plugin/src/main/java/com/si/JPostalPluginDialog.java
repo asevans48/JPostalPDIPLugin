@@ -35,6 +35,7 @@ import org.pentaho.di.trans.step.StepDialogInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
 
+
 public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInterface{
 
     private static Class<?> PKG = JPostalPluginMeta.class; // for i18n purposes, needed by Translator2!! $NON-NLS-1$
@@ -47,6 +48,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     private Text wCityOut;
     private Text wStateOut;
     private Text wZipOut;
+    private Text wHouseOut;
     private JPostalPluginMeta meta;
 
   public JPostalPluginDialog( Shell parent, Object stepMeta, TransMeta transMeta, String stepname ) {
@@ -170,12 +172,31 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
       fdStepname.right = new FormAttachment( 100, 0 );
       wAddrOut.setLayoutData( fdStepname );
 
+      //house
+      Label lhouseName = new Label( wSettingsGroup, SWT.RIGHT );
+      lhouseName.setText( BaseMessages.getString( PKG, "JPostalPluginDialog.Output.House" ) );
+      props.setLook( laddrName );
+      FormData fdlHouseName = new FormData();
+      fdlHouseName.top = new FormAttachment( laddrName, margin );
+      fdlHouseName.left = new FormAttachment( 0, 0 );
+      fdlHouseName.right = new FormAttachment( middle, -margin );
+      laddrName.setLayoutData( fdlHouseName );
+      wHouseOut = new Text( wSettingsGroup, SWT.SINGLE | SWT.BORDER );
+      wHouseOut.setText( "" );
+      props.setLook( wAddrOut );
+      wHouseOut.addModifyListener( lsMod );
+      fdStepname = new FormData();
+      fdStepname.left = new FormAttachment( middle, 0 );
+      fdStepname.top = new FormAttachment( laddrName, margin );
+      fdStepname.right = new FormAttachment( 100, 0 );
+      wHouseOut.setLayoutData( fdStepname );
+
       //address2
       Label laddr2Name = new Label( wSettingsGroup, SWT.RIGHT );
       laddr2Name.setText( BaseMessages.getString( PKG, "JPostalPluginDialog.Output.Address2" ) );
       props.setLook( laddr2Name );
       FormData fdladdr2Name = new FormData();
-      fdladdr2Name.top = new FormAttachment( laddrName, margin );
+      fdladdr2Name.top = new FormAttachment( lhouseName, margin );
       fdladdr2Name.left = new FormAttachment( 0, 0 );
       fdladdr2Name.right = new FormAttachment( middle, -margin );
       laddr2Name.setLayoutData( fdladdr2Name );
@@ -185,7 +206,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
       wAddr2Out.addModifyListener( lsMod );
       fdStepname = new FormData();
       fdStepname.left = new FormAttachment( middle, 0 );
-      fdStepname.top = new FormAttachment( laddrName, margin );
+      fdStepname.top = new FormAttachment( lhouseName, margin );
       fdStepname.right = new FormAttachment( 100, 0 );
       wAddr2Out.setLayoutData( fdStepname );
 
@@ -291,6 +312,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
       wCityOut.addSelectionListener(lsDef);
       wStateOut.addSelectionListener(lsDef);
       wZipOut.addSelectionListener(lsDef);
+      wHouseOut.addSelectionListener(lsDef);
 
       // Detect X or ALT-F4 or something that kills this window and cancel the dialog properly
       shell.addShellListener( new ShellAdapter() {
@@ -334,6 +356,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     wAddr2Out.setText(Const.NVL(meta.getAddress2OutField(),""));
     wCityOut.setText(Const.NVL(meta.getCityOutField(),""));
     wZipOut.setText(Const.NVL(meta.getZipOutField(),""));
+    wHouseOut.setText(Const.NVL(meta.getHouseOutField(), ""));
     wStepname.setFocus();
   }
 
@@ -356,6 +379,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     String cityFieldName = Const.NVL(wCityOut.getText(), null);
     String stateFieldName = Const.NVL(wStateOut.getText(), null);
     String zipFieldName = Const.NVL(wZipOut.getText(), null);
+    String houseFieldName = Const.NVL(wHouseOut.getText(), null);
 
     meta.setExtractField(extractField);
     meta.setAddressOutField(addressFieldName);
@@ -363,6 +387,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     meta.setCityOutField(cityFieldName);
     meta.setStateOutField(stateFieldName);
     meta.setZipOutField(zipFieldName);
+    meta.setHouseOutField(houseFieldName);
 
     dispose();
   }
