@@ -56,6 +56,7 @@
         <mockito.version>1.9.5</mockito.version>
         <junit.version>4.4</junit.version>
         <guava.version>17.0</guava.version>
+        <jpostal.jar>${user.home}/pdi-ce-8.2.0.0-342/data-integration/libext/jpostal.jar</jpostal.jar>
     </properties>
 
     <dependencies>
@@ -96,6 +97,13 @@
             <groupId>pentaho</groupId>
             <artifactId>pentaho-metaverse-core</artifactId>
             <version>${dependency.pentaho-metaverse-api}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mapzen</groupId>
+            <artifactId>jpostal</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${jpostal.jar}</systemPath>
         </dependency>
     </dependencies>
 

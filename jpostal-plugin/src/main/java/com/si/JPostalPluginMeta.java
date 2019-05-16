@@ -281,7 +281,4 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
     return new JPostalPluginData();
   }
 
-  public String getDialogClassName() {
-    return "com.si.JPostalPluginDialog";
-  }
 }
