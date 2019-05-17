@@ -43,6 +43,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     private FormData fdSettingsGroup;
     private Text wStepname;
     private CCombo extractCombo;
+    private Button wuseNer;
     private Text wAddrOut;
     private Text wAddr2Out;
     private Text wCityOut;
@@ -271,7 +272,24 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
       fdStepname.right = new FormAttachment( 100, 0 );
       wZipOut.setLayoutData( fdStepname );
 
-
+      // set the zip output name
+      Label lckName = new Label( wSettingsGroup, SWT.RIGHT );
+      lckName.setText( BaseMessages.getString( PKG, "JPostalPluginDialog.Output.Usener" ) );
+      props.setLook( lzipName );
+      FormData fdlckName = new FormData();
+      fdlckName.top = new FormAttachment( lzipName, margin );
+      fdlckName.left = new FormAttachment( 0, 0 );
+      fdlckName.right = new FormAttachment( middle, -margin );
+      lzipName.setLayoutData( fdlzipName );
+      wuseNer = new Button( wSettingsGroup, SWT.CHECK | SWT.SINGLE | SWT.BORDER );
+      wuseNer.setText("NER");
+      props.setLook( wuseNer );
+      wZipOut.addModifyListener( lsMod );
+      fdStepname = new FormData();
+      fdStepname.left = new FormAttachment( middle, 0 );
+      fdStepname.top = new FormAttachment( lckName, margin );
+      fdStepname.right = new FormAttachment( 100, 0 );
+      wZipOut.setLayoutData( fdStepname );
 
       fdSettingsGroup = new FormData();
       fdSettingsGroup.left = new FormAttachment( 0, margin );
@@ -313,6 +331,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
       wStateOut.addSelectionListener(lsDef);
       wZipOut.addSelectionListener(lsDef);
       wHouseOut.addSelectionListener(lsDef);
+      wuseNer.addSelectionListener(lsDef);
 
       // Detect X or ALT-F4 or something that kills this window and cancel the dialog properly
       shell.addShellListener( new ShellAdapter() {
@@ -357,6 +376,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     wCityOut.setText(Const.NVL(meta.getCityOutField(),""));
     wZipOut.setText(Const.NVL(meta.getZipOutField(),""));
     wHouseOut.setText(Const.NVL(meta.getHouseOutField(), ""));
+    wuseNer.setSelection(meta.isNer());
     wStepname.setFocus();
   }
 
@@ -380,6 +400,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     String stateFieldName = Const.NVL(wStateOut.getText(), null);
     String zipFieldName = Const.NVL(wZipOut.getText(), null);
     String houseFieldName = Const.NVL(wHouseOut.getText(), null);
+    boolean isNer = wuseNer.getSelection();
 
     meta.setExtractField(extractField);
     meta.setAddressOutField(addressFieldName);
@@ -388,6 +409,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
     meta.setStateOutField(stateFieldName);
     meta.setZipOutField(zipFieldName);
     meta.setHouseOutField(houseFieldName);
+    meta.setNer(isNer);
 
     dispose();
   }

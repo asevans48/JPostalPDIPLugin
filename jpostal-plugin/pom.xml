@@ -56,6 +56,7 @@
         <mockito.version>1.9.5</mockito.version>
         <junit.version>4.4</junit.version>
         <guava.version>17.0</guava.version>
+        <dependency.corenlp.version>3.9.2</dependency.corenlp.version>
         <jpostal.jar>${user.home}/pdi-ce-8.2.0.0-342/data-integration/libext/jpostal.jar</jpostal.jar>
     </properties>
 
@@ -92,19 +93,29 @@
             <artifactId>pentaho-metaverse-api</artifactId>
             <version>${dependency.pentaho-metaverse-api}</version>
         </dependency>
-
         <dependency>
             <groupId>pentaho</groupId>
             <artifactId>pentaho-metaverse-core</artifactId>
             <version>${dependency.pentaho-metaverse-api}</version>
         </dependency>
         <dependency>
-            <groupId>com.mapzen</groupId>
-            <artifactId>jpostal</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${jpostal.jar}</systemPath>
+            <groupId>edu.stanford.nlp</groupId>
+            <artifactId>stanford-corenlp</artifactId>
+            <version>${dependency.corenlp.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>libpostal-platform</artifactId>
+            <version>1.1-alpha-1.5</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-engine -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.4.2</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -132,6 +143,19 @@
                 <configuration>
                     <source>${target.jdk.version}</source>
                     <target>${target.jdk.version}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.0.0-M3</version>
+                <configuration>
+                    <systemProperties>
+                        <property>
+                            <name>libpostal.data.dir</name>
+                            <value>${user.home}/libpostal/data</value>
+                        </property>
+                    </systemProperties>
                 </configuration>
             </plugin>
             <plugin>

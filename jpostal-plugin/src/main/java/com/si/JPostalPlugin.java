@@ -18,7 +18,6 @@
  */
 package com.si;
 
-import com.mapzen.jpostal.*;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.row.RowDataUtil;
 import org.pentaho.di.core.row.RowMetaInterface;
@@ -83,6 +82,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
     String state = null;
 
     if(meta.getExtractIndex() >= 0) {
+      /*
       AddressParser p = AddressParser.getInstance();
       String addr = (String) r[meta.getExtractIndex()];
       ParsedComponent[] components = p.parseAddress(addr);
@@ -106,6 +106,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
             state = val;
         }
       }
+      */
     }
 
     int idx = this.idxMap.get(meta.getAddressOutField());
