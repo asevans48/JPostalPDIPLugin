@@ -82,31 +82,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
     String state = null;
 
     if(meta.getExtractIndex() >= 0) {
-      /*
-      AddressParser p = AddressParser.getInstance();
-      String addr = (String) r[meta.getExtractIndex()];
-      ParsedComponent[] components = p.parseAddress(addr);
-      for(ParsedComponent component : components){
-        String label = component.getLabel();
-        String val = component.getValue();
-        switch (label.toLowerCase()){
-          case "house":
-            house = val;
-          case "postcode":
-            postcode = val;
-          case "unit":
-            unit = val;
-          case "po_box":
-            road = val;
-          case "road":
-            road = val;
-          case "city":
-            city = val;
-          case "state":
-            state = val;
-        }
-      }
-      */
+
     }
 
     int idx = this.idxMap.get(meta.getAddressOutField());
