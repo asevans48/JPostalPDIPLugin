@@ -295,8 +295,8 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
 
         //path to NER
         wNerName = new Label(shell, SWT.RIGHT);
-        wNerName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Zip"));
-        props.setLook(wZipName);
+        wNerName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.NERModel"));
+        props.setLook(wNerName);
         fdlNerName = new FormData();
         fdlNerName.left = new FormAttachment(0, 0);
         fdlNerName.top = new FormAttachment(wZipName, 15);
@@ -305,7 +305,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
         wNerOut = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
         wNerOut.setText("");
         wNerOut.addModifyListener(lsMod);
-        props.setLook(wZipOut);
+        props.setLook(wNerOut);
         fdlNerOut = new FormData();
         fdlNerOut.left = new FormAttachment(middle, 0);
         fdlNerOut.top = new FormAttachment(wZipName, 15);
@@ -330,12 +330,12 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
         fdlLpOut.left = new FormAttachment(middle, 0);
         fdlLpOut.top = new FormAttachment(wNerName, 15);
         fdlLpOut.right = new FormAttachment(100, 0);
-        wLpOut.setLayoutData(fdlZipOut);
+        wLpOut.setLayoutData(fdlLpOut);
 
 
         //add a flag for using ner
         wUserNerName = new Label(shell,SWT.RIGHT);
-        wUserNerName.setText(BaseMessages.getString(PKG,"JPostalPluginDialog.Output.NERModel"));
+        wUserNerName.setText(BaseMessages.getString(PKG,"JPostalPluginDialog.Output.Usener"));
         props.setLook(wUserNerName);
         fdlUseNerName = new FormData();
         fdlUseNerName.left = new FormAttachment(0, 0);
