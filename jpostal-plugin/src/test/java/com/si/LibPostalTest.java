@@ -1,9 +1,10 @@
 package com.si;
 
-import org.bytedeco.javacpp.*;
-import org.bytedeco.libpostal.*;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.libpostal.libpostal_address_parser_options_t;
+import org.bytedeco.libpostal.libpostal_address_parser_response_t;
+
 import static org.bytedeco.libpostal.global.postal.*;
-import org.junit.jupiter.api.Test;
 
 
 public class LibPostalTest {
@@ -13,6 +14,7 @@ public class LibPostalTest {
     boolean setup2 = libpostal_setup_parser_datadir(fpath);
     boolean setup3 = libpostal_setup_language_classifier_datadir(fpath);
 
+    //@Test takes a while to run because of setup
     public void StringShouldContainOrNotContainRoad() throws Exception{
         assert(fpath != null);
         assert(setup1 && setup2 && setup3);

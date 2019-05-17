@@ -18,6 +18,8 @@
  */
 package com.si;
 
+import edu.stanford.nlp.ie.AbstractSequenceClassifier;
+import edu.stanford.nlp.ie.crf.CRFClassifier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.events.*;
@@ -33,24 +35,55 @@ import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDialogInterface;
 import org.pentaho.di.trans.step.StepMeta;
-import org.pentaho.di.ui.core.widget.LabelText;
+import org.pentaho.di.ui.core.widget.TextVar;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.text.Normalizer;
 
 
 public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInterface{
 
     private static Class<?> PKG = JPostalPluginMeta.class; // for i18n purposes, needed by Translator2!! $NON-NLS-1$
-    private Group wSettingsGroup;
-    private FormData fdSettingsGroup;
+
+    private Label wlStepname;
     private Text wStepname;
+    private FormData fdStepname, fdlStepname;
+
+    private Label lfname;
     private CCombo extractCombo;
+    private FormData fdlFname, fdStep;
+
+    private Label wUserNerName;
     private Button wuseNer;
-    private LabelText wAddrOut;
-    private LabelText wAddr2Out;
-    private LabelText wCityOut;
-    private LabelText wStateOut;
-    private LabelText wZipOut;
-    private LabelText wHouseOut;
+    private FormData fdlUseNer, fdlUseNerName;
+
+    private Label wAddrName;
+    private TextVar wAddrOut;
+    private FormData fdlAddrName, fdlAddrOut;
+
+    private Label wAddr2Name;
+    private TextVar wAddr2Out;
+    private FormData fdlAddr2Name, fdlAddr2Out;
+
+    private Label wCityName;
+    private TextVar wCityOut;
+    private FormData fdlCityName, fdlCityOut;
+
+    private Label wStateName;
+    private TextVar wStateOut;
+    private FormData fdlStateName, fdlStateOut;
+
+    private Label wZipName;
+    private TextVar wZipOut;
+    private FormData fdlZipName, fdlZipOut;
+
+    private Label wHouseName;
+    private TextVar wHouseOut;
+    private FormData fdlHouseName, fdlHouseOut;
+
     private JPostalPluginMeta meta;
 
     public JPostalPluginDialog( Shell parent, Object stepMeta, TransMeta transMeta, String stepname ) {
@@ -113,68 +146,175 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
         fdStepname.right = new FormAttachment(100, 0);
         wStepname.setLayoutData(fdStepname);
 
-        wHouseOut = new LabelText(shell, BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address2"), null);
-        props.setLook(wHouseOut);
+        // Set the field name
+        lfname = new Label( shell, SWT.RIGHT );
+        lfname.setText( BaseMessages.getString( PKG, "JPostalPluginDialog.Fields.FieldName" ) );
+        props.setLook( lfname );
+        fdlFname = new FormData();
+        fdlFname.left = new FormAttachment( 0, 0 );
+        fdlFname.right = new FormAttachment( middle, -margin );
+        fdlFname.top = new FormAttachment( wStepname, 15 );
+        lfname.setLayoutData( fdlFname );
+
+        extractCombo = new CCombo( shell, SWT.BORDER );
+        props.setLook( extractCombo );
+        StepMeta stepinfo = transMeta.findStep( stepname );
+        if ( stepinfo != null ) {
+            try {
+                String[] fields = transMeta.getStepFields(stepname).getFieldNames();
+                for (int i = 0; i < fields.length; i++) {
+                    extractCombo.add(fields[i]);
+                }
+            }catch(KettleException e){
+                if ( log.isBasic())
+                    logBasic("Failed to Get Step Fields");
+            }
+        }
+
+        extractCombo.addModifyListener( lsMod );
+        fdStep = new FormData();
+        fdStep.left = new FormAttachment( middle, 0 );
+        fdStep.top = new FormAttachment( wStepname, 15 );
+        fdStep.right = new FormAttachment( 100, 0 );
+        extractCombo.setLayoutData( fdStep );
+
+        //house
+        wHouseName = new Label(shell, SWT.RIGHT);
+        wHouseName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.House"));
+        props.setLook(wHouseName);
+        fdlHouseName = new FormData();
+        fdlHouseName.left = new FormAttachment(0, 0);
+        fdlHouseName.top = new FormAttachment(lfname, 15);
+        fdlHouseName.right = new FormAttachment(middle, -margin);
+        wHouseName.setLayoutData(fdlHouseName);
+        wHouseOut = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wHouseOut.setText("");
         wHouseOut.addModifyListener(lsMod);
-        FormData fdValName = new FormData();
-        fdValName.left = new FormAttachment(0, 0);
-        fdValName.right = new FormAttachment(100, 0);
-        fdValName.top = new FormAttachment(wStepname, margin);
-        wHouseOut.setLayoutData(fdValName);
+        props.setLook(wHouseOut);
+        fdlHouseOut = new FormData();
+        fdlHouseOut.left = new FormAttachment(middle, 0);
+        fdlHouseOut.top = new FormAttachment(lfname, 15);
+        fdlHouseOut.right = new FormAttachment(100, 0);
+        wHouseOut.setLayoutData(fdlHouseOut);
 
-        wAddrOut = new LabelText(shell, BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address"), null);
-        props.setLook(wAddrOut);
+        //addr
+        wAddrName = new Label(shell, SWT.RIGHT);
+        wAddrName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address"));
+        props.setLook(wAddrName);
+        fdlAddrName = new FormData();
+        fdlAddrName.left = new FormAttachment(0, 0);
+        fdlAddrName.top = new FormAttachment(wHouseName, 15);
+        fdlAddrName.right = new FormAttachment(middle, -margin);
+        wAddrName.setLayoutData(fdlAddrName);
+        wAddrOut = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wAddrOut.setText("");
         wAddrOut.addModifyListener(lsMod);
-        fdValName = new FormData();
-        fdValName.left = new FormAttachment(0, 0);
-        fdValName.right = new FormAttachment(100, 0);
-        fdValName.top = new FormAttachment(wStepname, margin);
-        wAddrOut.setLayoutData(fdValName);
+        props.setLook(wAddrOut);
+        fdlAddrOut = new FormData();
+        fdlAddrOut.left = new FormAttachment(middle, 0);
+        fdlAddrOut.top = new FormAttachment(wHouseName, 15);
+        fdlAddrOut.right = new FormAttachment(100, 0);
+        wAddrOut.setLayoutData(fdlAddrOut);
 
-        wAddr2Out = new LabelText(shell, BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address2"), null);
-        props.setLook(wAddr2Out);
+        //addr2
+        wAddr2Name = new Label(shell, SWT.RIGHT);
+        wAddr2Name.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address2"));
+        props.setLook(wAddr2Name);
+        fdlAddr2Name = new FormData();
+        fdlAddr2Name.left = new FormAttachment(0, 0);
+        fdlAddr2Name.top = new FormAttachment(wAddrName, 15);
+        fdlAddr2Name.right = new FormAttachment(middle, -margin);
+        wAddr2Name.setLayoutData(fdlAddr2Name);
+        wAddr2Out = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wAddr2Out.setText("");
         wAddr2Out.addModifyListener(lsMod);
-        fdValName = new FormData();
-        fdValName.left = new FormAttachment(0, 0);
-        fdValName.right = new FormAttachment(100, 0);
-        fdValName.top = new FormAttachment(wStepname, margin);
-        wAddr2Out.setLayoutData(fdValName);
+        props.setLook(wAddr2Out);
+        fdlAddr2Out = new FormData();
+        fdlAddr2Out.left = new FormAttachment(middle, 0);
+        fdlAddr2Out.top = new FormAttachment(wAddrName, 15);
+        fdlAddr2Out.right = new FormAttachment(100, 0);
+        wAddr2Out.setLayoutData(fdlAddr2Out);
 
-        wCityOut = new LabelText(shell, BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address2"), null);
-        props.setLook(wCityOut);
+        //city
+        wCityName = new Label(shell, SWT.RIGHT);
+        wCityName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.City"));
+        props.setLook(wCityName);
+        fdlCityName = new FormData();
+        fdlCityName.left = new FormAttachment(0, 0);
+        fdlCityName.top = new FormAttachment(wAddr2Name, 15);
+        fdlCityName.right = new FormAttachment(middle, -margin);
+        wCityName.setLayoutData(fdlCityName);
+        wCityOut = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wCityOut.setText("");
         wCityOut.addModifyListener(lsMod);
-        fdValName = new FormData();
-        fdValName.left = new FormAttachment(0, 0);
-        fdValName.right = new FormAttachment(100, 0);
-        fdValName.top = new FormAttachment(wStepname, margin);
-        wCityOut.setLayoutData(fdValName);
+        props.setLook(wCityOut);
+        fdlCityOut = new FormData();
+        fdlCityOut.left = new FormAttachment(middle, 0);
+        fdlCityOut.top = new FormAttachment(wAddr2Name, 15);
+        fdlCityOut.right = new FormAttachment(100, 0);
+        wCityOut.setLayoutData(fdlCityOut);
 
-        wStateOut = new LabelText(shell, BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address2"), null);
-        props.setLook(wStateOut);
+        //state
+        wStateName = new Label(shell, SWT.RIGHT);
+        wStateName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.State"));
+        props.setLook(wStateName);
+        fdlStateName = new FormData();
+        fdlStateName.left = new FormAttachment(0, 0);
+        fdlStateName.top = new FormAttachment(wCityName, 15);
+        fdlStateName.right = new FormAttachment(middle, -margin);
+        wStateName.setLayoutData(fdlStateName);
+        wStateOut = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wStateOut.setText("");
         wStateOut.addModifyListener(lsMod);
-        fdValName = new FormData();
-        fdValName.left = new FormAttachment(0, 0);
-        fdValName.right = new FormAttachment(100, 0);
-        fdValName.top = new FormAttachment(wStepname, margin);
-        wStateOut.setLayoutData(fdValName);
+        props.setLook(wCityOut);
+        fdlStateOut = new FormData();
+        fdlStateOut.left = new FormAttachment(middle, 0);
+        fdlStateOut.top = new FormAttachment(wCityName, 15);
+        fdlStateOut.right = new FormAttachment(100, 0);
+        wStateOut.setLayoutData(fdlStateOut);
 
-        wZipOut = new LabelText(shell, BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Address2"), null);
-        props.setLook(wZipOut);
+        //zip
+        wZipName = new Label(shell, SWT.RIGHT);
+        wZipName.setText(BaseMessages.getString(PKG, "JPostalPluginDialog.Output.Zip"));
+        props.setLook(wZipName);
+        fdlZipName = new FormData();
+        fdlZipName.left = new FormAttachment(0, 0);
+        fdlZipName.top = new FormAttachment(wStateName, 15);
+        fdlZipName.right = new FormAttachment(middle, -margin);
+        wZipName.setLayoutData(fdlZipName);
+        wZipOut = new TextVar(transMeta, shell, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+        wZipOut.setText("");
         wZipOut.addModifyListener(lsMod);
-        fdValName = new FormData();
-        fdValName.left = new FormAttachment(0, 0);
-        fdValName.right = new FormAttachment(100, 0);
-        fdValName.top = new FormAttachment(wStepname, margin);
-        wZipOut.setLayoutData(fdValName);
+        props.setLook(wZipOut);
+        fdlZipOut = new FormData();
+        fdlZipOut.left = new FormAttachment(middle, 0);
+        fdlZipOut.top = new FormAttachment(wStateName, 15);
+        fdlZipOut.right = new FormAttachment(100, 0);
+        wZipOut.setLayoutData(fdlZipOut);
 
         //add a flag for using ner
+        wUserNerName = new Label(shell,SWT.RIGHT);
+        wUserNerName.setText(BaseMessages.getString(PKG,"JPostalPluginDialog.Output.Usener"));
+        props.setLook(wUserNerName);
+        fdlUseNerName = new FormData();
+        fdlUseNerName.left = new FormAttachment(0, 0);
+        fdlUseNerName.top = new FormAttachment(wZipName, 15);
+        fdlUseNerName.right = new FormAttachment(middle, -margin);
+        wUserNerName.setLayoutData(fdlUseNerName);
+        wuseNer = new Button(shell, SWT.CHECK);
+        props.setLook(wuseNer);
+        fdlUseNer = new FormData();
+        fdlUseNer.left = new FormAttachment(middle, 0);
+        fdlUseNer.top = new FormAttachment(wZipName, 15);
+        fdlUseNer.right = new FormAttachment(100, 0);
+        wuseNer.setLayoutData(fdlUseNer);
 
         // OK and cancel buttons
         wOK = new Button(shell, SWT.PUSH);
         wOK.setText(BaseMessages.getString(PKG, "System.Button.OK"));
         wCancel = new Button(shell, SWT.PUSH);
         wCancel.setText(BaseMessages.getString(PKG, "System.Button.Cancel"));
-        setButtonPositions(new Button[]{wOK, wCancel}, margin, wZipOut);
+        setButtonPositions(new Button[]{wOK, wCancel}, margin, wUserNerName);
 
         // Add listeners for cancel and OK
         lsCancel = new Listener() {
@@ -196,6 +336,8 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
                 ok();
             }
         };
+        wuseNer.addSelectionListener(lsDef);
+        wHouseOut.addSelectionListener(lsDef);
         wStepname.addSelectionListener(lsDef);
         wHouseOut.addSelectionListener(lsDef);
         wAddrOut.addSelectionListener(lsDef);
@@ -246,7 +388,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
         wCityOut.setText(Const.NVL(meta.getCityOutField(),""));
         wZipOut.setText(Const.NVL(meta.getZipOutField(),""));
         wHouseOut.setText(Const.NVL(meta.getHouseOutField(), ""));
-        //wuseNer.setSelection(meta.isNer());
+        wuseNer.setSelection(meta.isNer());
         wStepname.setFocus();
     }
 
@@ -279,7 +421,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
         String stateFieldName = Const.NVL(wStateOut.getText(), null);
         String zipFieldName = Const.NVL(wZipOut.getText(), null);
         String houseFieldName = Const.NVL(wHouseOut.getText(), null);
-        //boolean isNer = wuseNer.getSelection();
+        boolean isNer = wuseNer.getSelection();
 
         meta.setExtractField(extractField);
         meta.setAddressOutField(addressFieldName);
@@ -288,7 +430,7 @@ public class JPostalPluginDialog extends BaseStepDialog implements StepDialogInt
         meta.setStateOutField(stateFieldName);
         meta.setZipOutField(zipFieldName);
         meta.setHouseOutField(houseFieldName);
-        //meta.setNer(isNer);
+        meta.setNer(isNer);
 
         dispose();
     }

@@ -18,6 +18,13 @@
  */
 package com.si;
 
+import edu.stanford.nlp.ie.AbstractSequenceClassifier;
+import edu.stanford.nlp.ie.crf.CRFClassifier;
+import edu.stanford.nlp.ling.CoreAnnotations;
+import edu.stanford.nlp.ling.CoreLabel;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.libpostal.libpostal_address_parser_options_t;
+import org.bytedeco.libpostal.libpostal_address_parser_response_t;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.row.RowDataUtil;
 import org.pentaho.di.core.row.RowMetaInterface;
@@ -28,8 +35,14 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.*;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import static org.bytedeco.libpostal.global.postal.*;
 
 
 /**
@@ -45,8 +58,56 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   private Map<String, Integer> idxMap = new HashMap<String, Integer>();
   private int newRowSize = 0;
 
+  private String nerFpath = null;
+  private AbstractSequenceClassifier classifier;
+
+  private String libPostalFpath = System.getProperty("libpostal.data.dir");
+  private boolean isLibPostalInitialized = false;
+  private boolean setup1 = false;
+  private boolean setup2 = false;
+  private boolean setup3 = false;
+  private libpostal_address_parser_options_t options = libpostal_get_address_parser_default_options();
+
   public JPostalPlugin(StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta, Trans trans) {
     super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
+  }
+
+  private void initNER(){
+    try {
+      nerFpath = JPostalPluginDialog.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+      String model = System.getProperty("corenlp.ner.model", "english.muc.7class.distsim.crf.ser.gz");
+      nerFpath = nerFpath + File.separator + "lib" + File.separator + model;
+      classifier = CRFClassifier.getClassifier(nerFpath);
+    }catch(URISyntaxException e){
+      if(isBasic()){
+        logBasic("Syntax Error Parsing Library Path for JPostal");
+      }
+    }catch(IOException e){
+      if(isBasic()){
+        logBasic("Failed to Load Core NLP Classifier");
+      }
+    }catch(ClassNotFoundException e){
+      if(isBasic()){
+        logBasic("Failed to find Class when Loading Core NLP Model");
+      }
+    }
+  }
+
+  private void initAddressParser(){
+    setup1 = libpostal_setup_datadir(libPostalFpath);
+    setup2 = libpostal_setup_parser_datadir(libPostalFpath);
+    setup3 = libpostal_setup_language_classifier_datadir(libPostalFpath);
+    isLibPostalInitialized = true;
+  }
+
+  private void teardownAddressParser(){
+    libpostal_teardown();
+    libpostal_teardown_parser();
+    libpostal_teardown_language_classifier();
+    setup1 = false;
+    setup2 = false;
+    setup3 = false;
+    isLibPostalInitialized = false;
   }
 
   /**
@@ -58,7 +119,110 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    *          The data to initialize
    */
   public boolean init( StepMetaInterface stepMetaInterface, StepDataInterface stepDataInterface ) {
+      if(meta.isNer()) {
+        initNER();
+      }
       return super.init( stepMetaInterface, stepDataInterface );
+  }
+
+  /**
+   * Checks whether a string contains a specific location.
+   *
+   * @param text  The text to check against
+   * @return  Whether the text contains the location
+   */
+  private boolean stringContainsLocation(String text){
+    boolean contains_loc = false;
+    List<List<CoreLabel>> labels = classifier.classify(text);
+    for(List<CoreLabel> sentence: labels){
+      for(CoreLabel word: sentence) {
+        String ctype = word.get(CoreAnnotations.AnswerAnnotation.class);
+        if(ctype.toUpperCase().equals("LOCATION")){
+          contains_loc = true;
+        }
+      }
+    }
+    return contains_loc;
+  }
+
+  /**
+   * Packages the row.
+   *
+   * @param house     The house
+   * @param postcode  The postal code
+   * @param unit      The unit
+   * @param road      The road part
+   * @param city      The city
+   * @param state     The state
+   * @param r         The output row
+   * @return  The updated object array row
+   */
+  private Object[] packageRow(String house, String postcode, String unit, String road, String city, String state, Object[] r){
+    int idx = this.idxMap.get(meta.getAddressOutField());
+    r[idx] = road;
+
+    idx = this.idxMap.get(meta.getAddress2OutField());
+    r[idx] = unit;
+
+    idx = this.idxMap.get(meta.getCityOutField());
+    r[idx] = city;
+
+    idx = this.idxMap.get(meta.getStateOutField());
+    r[idx] = state;
+
+    idx = this.idxMap.get(meta.getZipOutField());
+    r[idx] = postcode;
+
+    idx = this.idxMap.get(meta.getHouseOutField());
+    r[idx] = house;
+    return r;
+  }
+
+  /**
+   * Parse the address from the appropriate field
+   *
+   * @param process   Whether to process the row
+   * @param text      The text to process
+   * @param r         The row to process
+   * @return  The object array row representation
+   */
+  private Object[] parseAddress(boolean process, String text, Object[] r){
+    if(process) {
+      String house = null;
+      String postcode = null;
+      String unit = null;
+      String road = null;
+      String city = null;
+      String state = null;
+      try {
+        BytePointer address = new BytePointer(text, "UTF-8");
+        libpostal_address_parser_response_t response = libpostal_parse_address(address, options);
+        long count = response.num_components();
+        for (int j = 0; j < count; j++) {
+          String label = response.labels(j).getString();
+          switch(label.toUpperCase()){
+            case "HOUSE":
+              house = response.components(j).getString();
+            case "POSTCODE":
+              postcode = response.components(j).getString();
+            case "UNIT":
+              unit = response.components(j).getString();
+            case "ROAD":
+              road = response.components(j).getString();
+            case "CITY":
+              city = response.components(j).getString();
+            case "STATE":
+              state = response.components(j).getString();
+          }
+        }
+      }catch(IOException e){
+        if(isBasic()){
+          logBasic("Failed to get Byte Pointer From Text in Address Parser");
+        }
+      }
+      r = packageRow(house, postcode, unit, road, city, state, r);
+    }
+    return r;
   }
 
   /**
@@ -74,34 +238,17 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       orow = RowDataUtil.resizeArray(r, newRowSize);
     }
 
-    String house = null;
-    String postcode = null;
-    String unit = null;
-    String road = null;
-    String city = null;
-    String state = null;
-
     if(meta.getExtractIndex() >= 0) {
+      String extractText = (String) orow[meta.getExtractIndex()];
+      boolean process = true;
+      if(meta.isNer() && !stringContainsLocation(extractText)){
+        process = false;
+      }
 
+      if(process){
+        orow = parseAddress(process, extractText, orow);
+      }
     }
-
-    int idx = this.idxMap.get(meta.getAddressOutField());
-    orow[idx] = road;
-
-    idx = this.idxMap.get(meta.getAddress2OutField());
-    orow[idx] = unit;
-
-    idx = this.idxMap.get(meta.getCityOutField());
-    orow[idx] = city;
-
-    idx = this.idxMap.get(meta.getStateOutField());
-    orow[idx] = state;
-
-    idx = this.idxMap.get(meta.getZipOutField());
-    orow[idx] = postcode;
-
-    idx = this.idxMap.get(meta.getHouseOutField());
-    orow[idx] = house;
 
     return orow;
   }
@@ -170,9 +317,9 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
     data = (JPostalPluginData) sdi;
 
 
-    Object[] r = getRow(); // get row, set busy!
+    Object[] r = getRow();
     if ( r == null ) {
-      // no more input to be expected...
+      teardownAddressParser();
       setOutputDone();
       return false;
     }
@@ -181,6 +328,10 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       first = false;
       data.outputRowMeta = getNewRowMeta(getInputRowMeta(), meta);
       meta.getFields(data.outputRowMeta, getStepname(), null, null, this, repository, metaStore);
+    }
+
+    if(isLibPostalInitialized == false){
+      initAddressParser();
     }
 
     Object[] outRow = computeRowValues(data.outputRowMeta, r);
