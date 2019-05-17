@@ -35,9 +35,7 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.*;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,10 +56,8 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   private Map<String, Integer> idxMap = new HashMap<String, Integer>();
   private int newRowSize = 0;
 
-  private String nerFpath = null;
   private AbstractSequenceClassifier classifier;
 
-  private String libPostalFpath = System.getProperty("libpostal.data.dir");
   private boolean isLibPostalInitialized = false;
   private boolean setup1 = false;
   private boolean setup2 = false;
@@ -70,10 +66,6 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
   public JPostalPlugin(StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta, Trans trans) {
     super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
-    if(meta.isNer()) {
-      initNER();
-    }
-    initAddressParser();
     Runtime.getRuntime().addShutdownHook(new OnExitHook());
   }
 
@@ -85,7 +77,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
     @Override
     public void run(){
-      if(libPostalFpath != null) {
+      if(meta.getLpPath() != null) {
         libpostal_teardown();
         libpostal_teardown_parser();
         libpostal_teardown_language_classifier();
@@ -99,17 +91,20 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
   private void initNER(){
     try {
-      nerFpath = JPostalPluginDialog.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
-      String model = System.getProperty("corenlp.ner.model", "english.muc.7class.distsim.crf.ser.gz");
-      nerFpath = nerFpath + File.separator + "lib" + File.separator + model;
-      classifier = CRFClassifier.getClassifier(nerFpath);
-    }catch(URISyntaxException e){
-      if(isBasic()){
-        logBasic("Syntax Error Parsing Library Path for JPostal");
+      if(classifier == null) {
+        if(meta.getNerPath() == null){
+          throw new NullPointerException("No NLP Model Specified");
+        }
+        logBasic(meta.getNerPath());
+        classifier = CRFClassifier.getClassifier(meta.getNerPath());
       }
     }catch(IOException e){
       if(isBasic()){
         logBasic("Failed to Load Core NLP Classifier");
+      }
+    }catch(NullPointerException e) {
+      if(isBasic()){
+        logBasic("Path to Model Was Null");
       }
     }catch(ClassNotFoundException e){
       if(isBasic()){
@@ -119,10 +114,13 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   }
 
   private void initAddressParser(){
-    setup1 = libpostal_setup_datadir(libPostalFpath);
-    setup2 = libpostal_setup_parser_datadir(libPostalFpath);
-    setup3 = libpostal_setup_language_classifier_datadir(libPostalFpath);
-    isLibPostalInitialized = true;
+    logBasic(meta.getLpPath());
+    if(meta.getLpPath() != null && isLibPostalInitialized == false) {
+      setup1 = libpostal_setup_datadir(meta.getLpPath());
+      setup2 = libpostal_setup_parser_datadir(meta.getLpPath());
+      setup3 = libpostal_setup_language_classifier_datadir(meta.getLpPath());
+      isLibPostalInitialized = true;
+    }
   }
 
   private void teardownAddressParser(){
@@ -156,13 +154,19 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    */
   private boolean stringContainsLocation(String text){
     boolean contains_loc = false;
-    List<List<CoreLabel>> labels = classifier.classify(text);
-    for(List<CoreLabel> sentence: labels){
-      for(CoreLabel word: sentence) {
-        String ctype = word.get(CoreAnnotations.AnswerAnnotation.class);
-        if(ctype.toUpperCase().equals("LOCATION")){
-          contains_loc = true;
+    if(text != null) {
+      if(classifier == null) {
+        List<List<CoreLabel>> labels = classifier.classify(text);
+        for (List<CoreLabel> sentence : labels) {
+          for (CoreLabel word : sentence) {
+            String ctype = word.get(CoreAnnotations.AnswerAnnotation.class);
+            if (ctype.toUpperCase().equals("LOCATION")) {
+              contains_loc = true;
+            }
+          }
         }
+      }else{
+        throw new NullPointerException("Classifier For Location Detection Null");
       }
     }
     return contains_loc;
@@ -314,7 +318,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
     String zipField = meta.getZipOutField();
     String[] fieldnames = {houseField, addressField, address2Field, cityField, stateField, zipField};
 
-    int idx = stringArrayContains(fieldnames, meta.getExtractField());
+    int idx = stringArrayContains(fields, meta.getExtractField());
     if(idx == -1){
       throw new KettleException("JPostal Plugin missing Extract Field");
     }
@@ -349,6 +353,10 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
     if(first) {
       first = false;
+      if(meta.isNer()) {
+        initNER();
+      }
+      initAddressParser();
       data.outputRowMeta = getNewRowMeta(getInputRowMeta(), meta);
       meta.getFields(data.outputRowMeta, getStepname(), null, null, this, repository, metaStore);
     }

@@ -65,6 +65,8 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
   private String stateOutField = "state_out";
   private String zipOutField = "zip_out";
   private Boolean isNer = false;
+  private String lpPath = null;
+  private String nerPath = null;
 
   public JPostalPluginMeta() {
     super(); // allocate BaseStepMeta
@@ -73,6 +75,21 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
   /*
   Getters and setters for specific meta data
    */
+  public String getLpPath() {
+      return lpPath;
+  }
+
+  public void setLpPath(String lpPath) {
+      this.lpPath = lpPath;
+  }
+
+  public String getNerPath() {
+      return nerPath;
+  }
+
+  public void setNerPath(String nerPath) {
+      this.nerPath = nerPath;
+  }
 
   public boolean isNer() {
         return isNer;
@@ -157,6 +174,8 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
         xml.append( XMLHandler.addTagValue( "stateOutField", stateOutField ) );
         xml.append( XMLHandler.addTagValue( "zipOutField", zipOutField ) );
         xml.append(XMLHandler.addTagValue("isNer", isNer));
+        xml.append(XMLHandler.addTagValue("lpPath", lpPath));
+        xml.append(XMLHandler.addTagValue("nerPath", nerPath));
         return xml.toString();
   }
 
@@ -170,6 +189,8 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
           setZipOutField( XMLHandler.getNodeValue( XMLHandler.getSubNode( stepnode, "zipOutField" ) ) );
           setExtractField( XMLHandler.getNodeValue( XMLHandler.getSubNode( stepnode, "extractField" ) ) );
           setNer(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "isNer")).toUpperCase().equals("Y"));
+          setNerPath(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "nerPath")));
+          setNerPath(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "lpPath")));
       } catch ( Exception e ) {
           throw new KettleXMLException( "Demo plugin unable to read step info from XML node", e );
       }
@@ -201,6 +222,8 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
           stateOutField  = rep.getStepAttributeString( id_step, "stateOutField" );
           zipOutField  = rep.getStepAttributeString( id_step, "zipOutField" );
           isNer = rep.getStepAttributeBoolean(id_step, "isNer");
+          lpPath = rep.getStepAttributeString(id_step, "lpPath");
+          nerPath = rep.getStepAttributeString(id_step, "nerPath");
       } catch ( Exception e ) {
           throw new KettleException( "Unable to load step from repository", e );
       }
@@ -216,6 +239,8 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
           rep.saveStepAttribute( id_transformation, id_step, "stateOutField", stateOutField );
           rep.saveStepAttribute( id_transformation, id_step, "zipOutField", zipOutField );
           rep.saveStepAttribute( id_transformation, id_step, "isNer", isNer );
+          rep.saveStepAttribute( id_transformation, id_step, "lpPath", lpPath );
+          rep.saveStepAttribute( id_transformation, id_step, "nerPath", nerPath );
       } catch ( Exception e ) {
           throw new KettleException( "Unable to save step into repository: " + id_step, e );
       }
