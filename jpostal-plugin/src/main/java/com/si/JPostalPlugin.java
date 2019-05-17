@@ -70,6 +70,31 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
   public JPostalPlugin(StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta, Trans trans) {
     super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
+    if(meta.isNer()) {
+      initNER();
+    }
+    initAddressParser();
+    Runtime.getRuntime().addShutdownHook(new OnExitHook());
+  }
+
+  /**
+   * Attempt at running a shutdown hook to cleanup the address parser
+   * when the step is actually done running.
+   */
+  class OnExitHook extends Thread{
+
+    @Override
+    public void run(){
+      if(libPostalFpath != null) {
+        libpostal_teardown();
+        libpostal_teardown_parser();
+        libpostal_teardown_language_classifier();
+        setup1 = false;
+        setup2 = false;
+        setup3 = false;
+      }
+      isLibPostalInitialized = false;
+    }
   }
 
   private void initNER(){
@@ -118,10 +143,8 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    * @param stepDataInterface
    *          The data to initialize
    */
+  @Override
   public boolean init( StepMetaInterface stepMetaInterface, StepDataInterface stepDataInterface ) {
-      if(meta.isNer()) {
-        initNER();
-      }
       return super.init( stepMetaInterface, stepDataInterface );
   }
 
