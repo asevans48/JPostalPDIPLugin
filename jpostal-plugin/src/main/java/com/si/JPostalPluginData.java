@@ -35,10 +35,6 @@ import static org.bytedeco.libpostal.global.postal.*;
 
 public class JPostalPluginData extends BaseStepData implements StepDataInterface{
 
-    public JPostalPluginData() {
-        super();
-    }
-
     public RowMetaInterface outputRowMeta;
 
     private AbstractSequenceClassifier classifier;
@@ -47,6 +43,11 @@ public class JPostalPluginData extends BaseStepData implements StepDataInterface
     private boolean setup3 = false;
     private boolean isLibPostalInitialized = false;
     private libpostal_address_parser_options_t options = null;
+
+
+    public JPostalPluginData() {
+        super();
+    }
 
 
     public AbstractSequenceClassifier getClassifier() {
