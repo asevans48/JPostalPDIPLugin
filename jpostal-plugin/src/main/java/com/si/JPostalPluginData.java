@@ -18,14 +18,75 @@
  */
 package com.si;
 
+import edu.stanford.nlp.ie.AbstractSequenceClassifier;
+import edu.stanford.nlp.ie.crf.CRFClassifier;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.libpostal.libpostal_address_parser_options_t;
+import org.bytedeco.libpostal.libpostal_address_parser_response_t;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.trans.step.BaseStepData;
 import org.pentaho.di.trans.step.StepDataInterface;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+
+import static org.bytedeco.libpostal.global.postal.*;
+
 
 public class JPostalPluginData extends BaseStepData implements StepDataInterface{
-    public RowMetaInterface outputRowMeta;
+
     public JPostalPluginData() {
-		super();
-	}
+        super();
+    }
+
+    public RowMetaInterface outputRowMeta;
+
+    private AbstractSequenceClassifier classifier;
+    private boolean setup1 = false;
+    private boolean setup2 = false;
+    private boolean setup3 = false;
+    private boolean isLibPostalInitialized = false;
+    private libpostal_address_parser_options_t options = null;
+
+
+    public AbstractSequenceClassifier getClassifier() {
+        return classifier;
+    }
+
+    public void initClassifier(String nerPath) throws IOException, ClassNotFoundException {
+        classifier = CRFClassifier.getClassifier(nerPath);
+    }
+
+    public boolean setupAddressParser(String lpPath){
+        if(!setup1 || !setup2 || !setup3) {
+            if (lpPath != null && isLibPostalInitialized == false) {
+                setup1 = libpostal_setup_datadir(lpPath);
+                setup2 = libpostal_setup_parser_datadir(lpPath);
+                setup3 = libpostal_setup_language_classifier_datadir(lpPath);
+                isLibPostalInitialized = true;
+                options = libpostal_get_address_parser_default_options();
+            }
+        }
+        return isAddressParserSetup();
+    }
+
+    public boolean isAddressParserSetup(){
+        return (setup1 && setup2 && setup3);
+    }
+
+    public libpostal_address_parser_response_t parseAddress(String text) throws UnsupportedEncodingException {
+        BytePointer address = new BytePointer(text, "UTF-8");
+        libpostal_address_parser_response_t response = libpostal_parse_address(address, options);
+        return response;
+    }
+
+    public void teardownAddressParser(){
+        libpostal_teardown();
+        libpostal_teardown_parser();
+        libpostal_teardown_language_classifier();
+        setup1 = false;
+        setup2 = false;
+        setup3 = false;
+        isLibPostalInitialized = false;
+    }
 }

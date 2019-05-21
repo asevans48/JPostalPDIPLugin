@@ -18,12 +18,8 @@
  */
 package com.si;
 
-import edu.stanford.nlp.ie.AbstractSequenceClassifier;
-import edu.stanford.nlp.ie.crf.CRFClassifier;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
-import org.bytedeco.javacpp.BytePointer;
-import org.bytedeco.libpostal.libpostal_address_parser_options_t;
 import org.bytedeco.libpostal.libpostal_address_parser_response_t;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.row.RowDataUtil;
@@ -36,11 +32,7 @@ import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.*;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import static org.bytedeco.libpostal.global.postal.*;
 
 
 /**
@@ -53,16 +45,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
   private JPostalPluginMeta meta;
   private JPostalPluginData data;
-  private Map<String, Integer> idxMap = new HashMap<String, Integer>();
   private int newRowSize = 0;
-
-  private AbstractSequenceClassifier classifier;
-
-  private boolean isLibPostalInitialized = false;
-  private boolean setup1 = false;
-  private boolean setup2 = false;
-  private boolean setup3 = false;
-  private libpostal_address_parser_options_t options = libpostal_get_address_parser_default_options();
 
   public JPostalPlugin(StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta, Trans trans) {
     super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
@@ -77,26 +60,28 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
     @Override
     public void run(){
-      if(meta.getLpPath() != null) {
-        libpostal_teardown();
-        libpostal_teardown_parser();
-        libpostal_teardown_language_classifier();
-        setup1 = false;
-        setup2 = false;
-        setup3 = false;
-      }
-      isLibPostalInitialized = false;
+      data.teardownAddressParser();
     }
   }
 
   private void initNER(){
     try {
-      if(classifier == null) {
+      if(data.getClassifier() == null) {
         if(meta.getNerPath() == null){
           throw new NullPointerException("No NLP Model Specified");
         }
-        logBasic(meta.getNerPath());
-        classifier = CRFClassifier.getClassifier(meta.getNerPath());
+
+        data.initClassifier(meta.getNerPath());
+        if(data.getClassifier() == null){
+          if(isBasic()){
+            logBasic("NER Classifier Not Loaded");
+          }
+          stopAll();
+        }else{
+          if(isBasic()){
+            logBasic("NER Classifier Loaded");
+          }
+        }
       }
     }catch(IOException e){
       if(isBasic()){
@@ -114,23 +99,17 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   }
 
   private void initAddressParser(){
-    logBasic(meta.getLpPath());
-    if(meta.getLpPath() != null && isLibPostalInitialized == false) {
-      setup1 = libpostal_setup_datadir(meta.getLpPath());
-      setup2 = libpostal_setup_parser_datadir(meta.getLpPath());
-      setup3 = libpostal_setup_language_classifier_datadir(meta.getLpPath());
-      isLibPostalInitialized = true;
+    boolean wasSetup = data.setupAddressParser(meta.getLpPath());
+    if(!wasSetup){
+      if(isBasic()){
+        logBasic("Failed to Initialize Address Parser");
+      }
+      stopAll();
+    }else{
+      if(isBasic()){
+        logBasic("Address Parser Loaded");
+      }
     }
-  }
-
-  private void teardownAddressParser(){
-    libpostal_teardown();
-    libpostal_teardown_parser();
-    libpostal_teardown_language_classifier();
-    setup1 = false;
-    setup2 = false;
-    setup3 = false;
-    isLibPostalInitialized = false;
   }
 
   /**
@@ -143,6 +122,10 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    */
   @Override
   public boolean init( StepMetaInterface stepMetaInterface, StepDataInterface stepDataInterface ) {
+      this.meta = (JPostalPluginMeta) stepMetaInterface;
+      this.data = (JPostalPluginData) stepDataInterface;
+      initNER();
+      initAddressParser();
       return super.init( stepMetaInterface, stepDataInterface );
   }
 
@@ -155,8 +138,8 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   private boolean stringContainsLocation(String text){
     boolean contains_loc = false;
     if(text != null) {
-      if(classifier == null) {
-        List<List<CoreLabel>> labels = classifier.classify(text);
+      if(data.getClassifier() != null) {
+        List<List<CoreLabel>> labels = data.getClassifier().classify(text);
         for (List<CoreLabel> sentence : labels) {
           for (CoreLabel word : sentence) {
             String ctype = word.get(CoreAnnotations.AnswerAnnotation.class);
@@ -175,6 +158,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
   /**
    * Packages the row.
    *
+   * @param rmi       The row meta interface
    * @param house     The house
    * @param postcode  The postal code
    * @param unit      The unit
@@ -184,36 +168,38 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    * @param r         The output row
    * @return  The updated object array row
    */
-  private Object[] packageRow(String house, String postcode, String unit, String road, String city, String state, Object[] r){
-    int idx = this.idxMap.get(meta.getAddressOutField());
+  private Object[] packageRow(RowMetaInterface rmi, String house, String postcode, String unit, String road, String city, String state, Object[] r){
+    int idx = rmi.indexOfValue(meta.getAddressOutField());
     r[idx] = road;
 
-    idx = this.idxMap.get(meta.getAddress2OutField());
+    idx = rmi.indexOfValue(meta.getAddress2OutField());
     r[idx] = unit;
 
-    idx = this.idxMap.get(meta.getCityOutField());
+    idx = rmi.indexOfValue(meta.getCityOutField());
     r[idx] = city;
 
-    idx = this.idxMap.get(meta.getStateOutField());
+    idx = rmi.indexOfValue(meta.getStateOutField());
     r[idx] = state;
 
-    idx = this.idxMap.get(meta.getZipOutField());
+    idx = rmi.indexOfValue(meta.getZipOutField());
     r[idx] = postcode;
 
-    idx = this.idxMap.get(meta.getHouseOutField());
+    idx = rmi.indexOfValue(meta.getHouseOutField());
     r[idx] = house;
-    return r;
+
+    return r.clone();
   }
 
   /**
    * Parse the address from the appropriate field
    *
+   * @param rmi       The RowMetaInterface containing output meta
    * @param process   Whether to process the row
    * @param text      The text to process
    * @param r         The row to process
    * @return  The object array row representation
    */
-  private Object[] parseAddress(boolean process, String text, Object[] r){
+  private Object[] parseAddress(RowMetaInterface rmi, boolean process, String text, Object[] r){
     if(process) {
       String house = null;
       String postcode = null;
@@ -221,33 +207,49 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       String road = null;
       String city = null;
       String state = null;
+      String house_number = null;
       try {
-        BytePointer address = new BytePointer(text, "UTF-8");
-        libpostal_address_parser_response_t response = libpostal_parse_address(address, options);
+        libpostal_address_parser_response_t response = data.parseAddress(text);
         long count = response.num_components();
         for (int j = 0; j < count; j++) {
           String label = response.labels(j).getString();
-          switch(label.toUpperCase()){
+          switch(label.toUpperCase().trim()){
             case "HOUSE":
               house = response.components(j).getString();
+              break;
             case "POSTCODE":
               postcode = response.components(j).getString();
+              break;
             case "UNIT":
               unit = response.components(j).getString();
+              break;
+            case "HOUSE_NUMBER":
+              house_number = response.components(j).getString();
+              break;
             case "ROAD":
               road = response.components(j).getString();
+              break;
             case "CITY":
               city = response.components(j).getString();
+              break;
             case "STATE":
               state = response.components(j).getString();
+              break;
+            default:
+              break;
           }
+        }
+        if(house_number != null && road != null){
+          road = house_number + " " + road;
+        }else if(house_number != null && road == null){
+          road = house_number;
         }
       }catch(IOException e){
         if(isBasic()){
           logBasic("Failed to get Byte Pointer From Text in Address Parser");
         }
       }
-      r = packageRow(house, postcode, unit, road, city, state, r);
+      r = packageRow(rmi, house, postcode, unit, road, city, state, r);
     }
     return r;
   }
@@ -273,7 +275,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       }
 
       if(process){
-        orow = parseAddress(process, extractText, orow);
+        orow = parseAddress(data.outputRowMeta, process, extractText, orow);
       }
     }
 
@@ -308,7 +310,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    * @return  The changed row meta interface
    */
   private RowMetaInterface getNewRowMeta(RowMetaInterface rowMeta, JPostalPluginMeta meta) throws KettleException{
-    String[] fields = getInputRowMeta().getFieldNames();
+    String[] fields = rowMeta.getFieldNames();
     newRowSize = getInputRowMeta().size();
     String houseField = meta.getHouseOutField();
     String addressField = meta.getAddressOutField();
@@ -328,41 +330,25 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       String fname = fieldnames[i];
       int cidx = stringArrayContains(fields, fname);
       if(cidx == -1){
-        idxMap.put(fname, newRowSize);
-        newRowSize += 1;
         ValueMetaInterface value = ValueMetaFactory.createValueMeta(fname, ValueMetaInterface.TYPE_STRING);
         rowMeta.addValueMeta(value);
-      }else{
-        idxMap.put(fname, cidx);
       }
     }
     return rowMeta;
   }
 
   public boolean processRow( StepMetaInterface smi, StepDataInterface sdi ) throws KettleException {
-    meta = (JPostalPluginMeta) smi;
-    data = (JPostalPluginData) sdi;
-
-
     Object[] r = getRow();
     if ( r == null ) {
-      teardownAddressParser();
       setOutputDone();
       return false;
     }
 
     if(first) {
+      data.outputRowMeta = getInputRowMeta().clone();
+      meta.getFields(data.outputRowMeta, getStepname(), null, null, this, null, null);
+      getNewRowMeta(data.outputRowMeta, meta);
       first = false;
-      if(meta.isNer()) {
-        initNER();
-      }
-      initAddressParser();
-      data.outputRowMeta = getNewRowMeta(getInputRowMeta(), meta);
-      meta.getFields(data.outputRowMeta, getStepname(), null, null, this, repository, metaStore);
-    }
-
-    if(isLibPostalInitialized == false){
-      initAddressParser();
     }
 
     Object[] outRow = computeRowValues(data.outputRowMeta, r);

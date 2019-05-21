@@ -18,6 +18,7 @@
  */
 package com.si;
 
+import edu.stanford.nlp.ie.AbstractSequenceClassifier;
 import org.pentaho.di.core.CheckResult;
 import org.pentaho.di.core.CheckResultInterface;
 import org.pentaho.di.core.annotations.Step;
@@ -67,6 +68,7 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
   private Boolean isNer = false;
   private String lpPath = null;
   private String nerPath = null;
+  private AbstractSequenceClassifier classifier;
 
   public JPostalPluginMeta() {
     super(); // allocate BaseStepMeta
@@ -190,13 +192,14 @@ public class JPostalPluginMeta extends BaseStepMeta implements StepMetaInterface
           setExtractField( XMLHandler.getNodeValue( XMLHandler.getSubNode( stepnode, "extractField" ) ) );
           setNer(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "isNer")).toUpperCase().equals("Y"));
           setNerPath(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "nerPath")));
-          setNerPath(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "lpPath")));
+          setLpPath(XMLHandler.getNodeValue(XMLHandler.getSubNode(stepnode, "lpPath")));
       } catch ( Exception e ) {
           throw new KettleXMLException( "Demo plugin unable to read step info from XML node", e );
       }
   }
 
   public Object clone() {
+      logBasic("Cloning");
     Object retval = super.clone();
     return retval;
   }
