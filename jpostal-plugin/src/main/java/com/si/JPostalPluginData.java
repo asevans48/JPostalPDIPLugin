@@ -75,13 +75,40 @@ public class JPostalPluginData extends BaseStepData implements StepDataInterface
         return (setup1 && setup2 && setup3);
     }
 
-    public libpostal_address_parser_response_t parseAddress(String text) throws UnsupportedEncodingException {
+    public String[][] parseAddress(String text) throws UnsupportedEncodingException {
         BytePointer address = new BytePointer(text, "UTF-8");
         libpostal_address_parser_response_t response = libpostal_parse_address(address, options);
-        return response;
+        int count = (int) response.num_components();
+        String[] labels = new String[count];
+        String[] values = new String[count];
+        String[][] lvArr = new String[2][labels.length];
+        for(int i = 0; i < count; i++){
+            BytePointer btp = response.labels(i);
+            BytePointer btp2 = response.components(i);
+            String label = btp.getString();
+            String val = btp2.getString();
+            labels[i] = label;
+            values[i] = val;
+            btp.deallocate();
+            btp2.deallocate();
+            btp = null;
+            btp2 = null;
+        }
+        lvArr[0] = labels;
+        lvArr[1] = values;
+        address.deallocate();
+        response.deallocate();
+        address = null;
+        response = null;
+        return lvArr;
     }
 
     public void teardownAddressParser(){
+        classifier = null;
+        if(options != null) {
+            options.deallocate();
+            options = null;
+        }
         libpostal_teardown();
         libpostal_teardown_parser();
         libpostal_teardown_language_classifier();
@@ -89,5 +116,6 @@ public class JPostalPluginData extends BaseStepData implements StepDataInterface
         setup2 = false;
         setup3 = false;
         isLibPostalInitialized = false;
+        System.gc();
     }
 }

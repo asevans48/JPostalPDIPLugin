@@ -49,7 +49,6 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
 
   public JPostalPlugin(StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta, Trans trans) {
     super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
-    Runtime.getRuntime().addShutdownHook(new OnExitHook());
   }
 
   /**
@@ -126,6 +125,7 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       this.data = (JPostalPluginData) stepDataInterface;
       initNER();
       initAddressParser();
+      Runtime.getRuntime().addShutdownHook(new OnExitHook());
       return super.init( stepMetaInterface, stepDataInterface );
   }
 
@@ -147,7 +147,10 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
               contains_loc = true;
             }
           }
+          sentence.clear();
         }
+        labels.clear();
+        labels = null;
       }else{
         throw new NullPointerException("Classifier For Location Detection Null");
       }
@@ -209,36 +212,39 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
       String state = null;
       String house_number = null;
       try {
-        libpostal_address_parser_response_t response = data.parseAddress(text);
-        long count = response.num_components();
-        for (int j = 0; j < count; j++) {
-          String label = response.labels(j).getString();
+        String[][] response = data.parseAddress(text);
+        String[] labels = response[0];
+        String[] values = response[1];
+        for (int j = 0; j < labels.length; j++) {
+          String label = labels[j];
+          String val = values[j];
           switch(label.toUpperCase().trim()){
             case "HOUSE":
-              house = response.components(j).getString();
+              house = val;
               break;
             case "POSTCODE":
-              postcode = response.components(j).getString();
+              postcode = val;
               break;
             case "UNIT":
-              unit = response.components(j).getString();
+              unit = val;
               break;
             case "HOUSE_NUMBER":
-              house_number = response.components(j).getString();
+              house_number = val;
               break;
             case "ROAD":
-              road = response.components(j).getString();
+              road = val;
               break;
             case "CITY":
-              city = response.components(j).getString();
+              city = val;
               break;
             case "STATE":
-              state = response.components(j).getString();
+              state = val;
               break;
             default:
               break;
           }
         }
+
         if(house_number != null && road != null){
           road = house_number + " " + road;
         }else if(house_number != null && road == null){
@@ -341,6 +347,8 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
     Object[] r = getRow();
     if ( r == null ) {
       setOutputDone();
+      logBasic("Closing Address Parser");
+      data.teardownAddressParser();
       return false;
     }
 
