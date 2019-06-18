@@ -172,22 +172,22 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    * @return  The updated object array row
    */
   private Object[] packageRow(RowMetaInterface rmi, String house, String postcode, String unit, String road, String city, String state, Object[] r){
-    int idx = rmi.indexOfValue(meta.getAddressOutField());
+    int idx = data.outputRowMeta.indexOfValue(meta.getAddressOutField());
     r[idx] = road;
 
-    idx = rmi.indexOfValue(meta.getAddress2OutField());
+    idx = data.outputRowMeta.indexOfValue(meta.getAddress2OutField());
     r[idx] = unit;
 
-    idx = rmi.indexOfValue(meta.getCityOutField());
+    idx = data.outputRowMeta.indexOfValue(meta.getCityOutField());
     r[idx] = city;
 
-    idx = rmi.indexOfValue(meta.getStateOutField());
+    idx = data.outputRowMeta.indexOfValue(meta.getStateOutField());
     r[idx] = state;
 
-    idx = rmi.indexOfValue(meta.getZipOutField());
+    idx = data.outputRowMeta.indexOfValue(meta.getZipOutField());
     r[idx] = postcode;
 
-    idx = rmi.indexOfValue(meta.getHouseOutField());
+    idx = data.outputRowMeta.indexOfValue(meta.getHouseOutField());
     r[idx] = house;
 
     return r.clone();
@@ -269,8 +269,8 @@ public class JPostalPlugin extends BaseStep implements StepInterface{
    */
   private Object[] computeRowValues(RowMetaInterface rowMeta, Object[] r){
     Object[] orow = r.clone();
-    if(newRowSize > r.length){
-      orow = RowDataUtil.resizeArray(r, newRowSize);
+    if(data.outputRowMeta.size() > orow.length){
+      orow = RowDataUtil.resizeArray(orow, data.outputRowMeta.size());
     }
 
     if(meta.getExtractIndex() >= 0) {
